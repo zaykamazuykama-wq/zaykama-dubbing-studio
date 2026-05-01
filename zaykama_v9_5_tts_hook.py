@@ -1076,12 +1076,20 @@ class ZaykamaV95TTSHook:
             self.log_message(f"Warning: failed to load {path}: {e}, ignoring")
             return []
 
+    def get_timestamp(self, obj: dict[str, Any], primary: str, alias: str, default: float = 0.0) -> float:
+        """Get timestamp value, preferring primary field if present and numeric, even if 0."""
+        if primary in obj and isinstance(obj[primary], (int, float)):
+            return float(obj[primary])
+        if alias in obj and isinstance(obj[alias], (int, float)):
+            return float(obj[alias])
+        return default
+
     def annotation_overlap_score(self, segment: dict[str, Any], annotation: dict[str, Any]) -> float:
         """Compute overlap score between segment and annotation."""
-        segment_start = segment.get('start') or segment.get('startTime', 0.0)
-        segment_end = segment.get('end') or segment.get('endTime', 0.0)
-        ann_start = annotation.get('start') or annotation.get('startTime', 0.0)
-        ann_end = annotation.get('end') or annotation.get('endTime', 0.0)
+        segment_start = self.get_timestamp(segment, 'start', 'startTime')
+        segment_end = self.get_timestamp(segment, 'end', 'endTime')
+        ann_start = self.get_timestamp(annotation, 'start', 'startTime')
+        ann_end = self.get_timestamp(annotation, 'end', 'endTime')
         
         overlap = max(0.0, min(segment_end, ann_end) - max(segment_start, ann_start))
         if overlap <= 0:
@@ -1106,7 +1114,8 @@ class ZaykamaV95TTSHook:
             return None
         
         # Sort by overlap score descending, then by start time difference ascending
-        scored.sort(key=lambda x: (-x[0], abs((segment.get('start') or 0.0) - (x[1].get('start') or x[1].get('startTime') or 0.0))))
+        segment_start = self.get_timestamp(segment, 'start', 'startTime')
+        scored.sort(key=lambda x: (-x[0], abs(segment_start - self.get_timestamp(x[1], 'start', 'startTime'))))
         
         return scored[0][1]
 
@@ -1569,10 +1578,24 @@ class ZaykamaV95TTSHook:
             assert self.annotation_overlap_score(segment, ann1) == 0.5
             assert self.annotation_overlap_score(segment, ann2) == 0.5
             assert self.annotation_overlap_score(segment, ann3) == 0.0
+            # Test zero start timestamp handling - primary field preferred even if 0
+            segment_zero_start = {"start": 0, "startTime": 5, "end": 1.0}
+            ann_zero_start = {"start": 0, "startTime": 5, "end": 1.0}
+            assert self.annotation_overlap_score(segment_zero_start, ann_zero_start) == 1.0  # full overlap from 0 to 1
+            # Test fallback to alias when primary missing
+            segment_alias = {"startTime": 0.5, "end": 1.5}
+            ann_alias = {"startTime": 0.0, "end": 1.0}
+            assert self.annotation_overlap_score(segment_alias, ann_alias) == 0.5
             # Test find best annotation (tie-breaker by start time difference)
             annotations = [ann1, ann2]
             best = self.find_best_annotation_for_segment(segment, annotations)
             assert best == ann1  # ann1 starts at 0.0, segment at 0.5, diff=0.5; ann2 starts at 1.0, diff=0.5, but ann1 comes first
+            # Test find best with zero start and alias - should prefer primary even if 0
+            segment_zero = {"start": 0, "end": 1.0}
+            ann_zero_primary = {"start": 0, "startTime": 5, "end": 1.0}  # should use start: 0
+            ann_zero_alias = {"startTime": 0, "end": 1.0}  # should use startTime: 0
+            best_zero = self.find_best_annotation_for_segment(segment_zero, [ann_zero_primary, ann_zero_alias])
+            assert best_zero == ann_zero_primary  # both have diff 0, but ann_zero_primary comes first
             # Test apply annotations
             ann_with_fields = {"start": 0.0, "end": 1.0, "characterId": "char1", "voiceId": "mn_male_adult_bataa", "emotion": "happy"}
             segments = [{"id": 1, "start": 0.5, "end": 1.5, "mongolianText": "Original text"}]
