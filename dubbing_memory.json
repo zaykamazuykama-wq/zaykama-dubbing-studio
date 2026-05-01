@@ -8,5 +8,152 @@
   "this is a jar of dirt": "Энэ шороотой лонх.",
   "is the jar of dirt going to help": "Энэ шороотой лонх тус болно гэж үү?",
   "give me your hand": "Надад гараа өг.",
-  "i dont know": "Би мэдэхгүй"
+  "your dog will be fine": "Нохой чинь зүгээр ээ",
+  "do not clock out": "Одоо битгий тараарай",
+  "i dont know": "Би мэдэхгүй",
+  "translation_mappings": [
+    {
+      "source": "jar of dirt",
+      "target": "шороотой лонх",
+      "forbidden": ["шороон сав"]
+    },
+    {
+      "source": "This is a jar of dirt.",
+      "target": "Энэ шороотой лонх.",
+      "forbidden": ["шороон сав"]
+    },
+    {
+      "source": "Is the jar of dirt going to help?",
+      "target": "Энэ шороотой лонх тус болно гэж үү?",
+      "forbidden": ["шороон сав"]
+    },
+    {
+      "source": "Your dog will be fine",
+      "target": "Нохой чинь зүгээр ээ",
+      "forbidden": ["Чиний нохой сайн байх болно"]
+    },
+    {
+      "source": "Do not clock out",
+      "target": "Одоо битгий тараарай",
+      "forbidden": []
+    },
+    {
+      "source": "Give me your hand",
+      "target": "Надад гараа өг",
+      "forbidden": []
+    }
+  ],
+  "suspicious_asr_phrases": [
+    "Let’s miss you on",
+    "Let's miss you on",
+    "Give it head",
+    "Give it head."
+  ],
+  "product_decisions": [
+    "movie_review requires source subtitle",
+    "quick_demo is ASR-only testing",
+    "persistent TTS cache plan",
+    "20+6 voice bank plan",
+    "similar voice assignment, not voice cloning",
+    "3-stage translation pipeline"
+  ],
+  "translation_pipeline": {
+    "name": "3-stage Mongolian dubbing translation pipeline",
+    "stages": [
+      {
+        "stage": 1,
+        "name": "Context-aware draft translation",
+        "requirements": [
+          "Use full transcript context",
+          "Use previous/current/next segment",
+          "Consider speaker, situation, tone, emotion, and segment duration",
+          "Produce draftMongolianText"
+        ],
+        "output": "draftMongolianText"
+      },
+      {
+        "stage": 2,
+        "name": "Mongolian dubbing editor rewrite",
+        "requirements": [
+          "Rewrite into natural spoken Mongolian",
+          "Avoid literal/stiff/formal translation",
+          "Preserve meaning, emotion, and intent",
+          "Compress naturally if the segment duration is short",
+          "Produce editorMongolianText"
+        ],
+        "output": "editorMongolianText"
+      },
+      {
+        "stage": 3,
+        "name": "QA / timing / risk check",
+        "requirements": [
+          "Check forbidden phrases",
+          "Flag suspicious ASR phrases instead of translating blindly",
+          "Flag tooLiteral, tooLong, needsReview",
+          "Produce final mongolianText for TTS"
+        ],
+        "output": "mongolianText"
+      }
+    ]
+  },
+  "segment_metadata_plan": [
+    "draftMongolianText",
+    "editorMongolianText",
+    "mongolianText",
+    "translationStage",
+    "translationReviewApplied",
+    "translationReviewReason",
+    "translationTooLiteral",
+    "translationTooLong",
+    "translationNeedsReview",
+    "emotion",
+    "style",
+    "delivery",
+    "speakerId",
+    "characterId",
+    "voiceId",
+    "providerVoiceId",
+    "voiceAssignmentMode",
+    "ttsCacheKey",
+    "ttsCacheHit",
+    "ttsCachedPath"
+  ],
+  "emotion_style_marker_plan": [
+    "neutral",
+    "calm",
+    "sad",
+    "angry",
+    "excited",
+    "fearful",
+    "whisper",
+    "laughing",
+    "smiling",
+    "serious",
+    "dramatic",
+    "soft",
+    "firm",
+    "reassuring"
+  ],
+  "delivery_marker_plan": {
+    "pace": ["slow", "normal", "fast"],
+    "emphasis_words": true,
+    "pauseBeforeMs": true,
+    "pauseAfterMs": true
+  },
+  "tts_cache_plan": {
+    "cache_key_includes": [
+      "provider",
+      "providerVoiceId",
+      "final mongolianText",
+      "emotion",
+      "style",
+      "delivery pace",
+      "rate/speed",
+      "output format"
+    ]
+  },
+  "voice_policy": {
+    "allowed": "Use similar voice assignment based on age/gender/timbre/energy/emotion.",
+    "forbidden": "Do not clone or impersonate a real person without explicit permission."
+  }
 }
