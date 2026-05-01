@@ -5,7 +5,8 @@
     "test": "node --test test/*.test.js",
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "validate:memory": "node scripts/validate-memory.js"
   },
   "dependencies": {
     "next": "^15.0.0",

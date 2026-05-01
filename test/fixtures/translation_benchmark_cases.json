@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "jar-of-dirt-natural-object",
+      "source": "jar of dirt",
+      "expected": "шороотой лонх",
+      "forbidden": ["шороон сав"],
+      "note": "Must not produce шороон сав."
+    },
+    {
+      "id": "dog-will-be-fine-natural-spoken",
+      "source": "Your dog will be fine",
+      "expected": "Нохой чинь зүгээр ээ",
+      "forbidden": ["Чиний нохой сайн байх болно"],
+      "note": "Must not produce stiff literal Mongolian."
+    },
+    {
+      "id": "do-not-clock-out-natural",
+      "source": "Do not clock out",
+      "expected": "Одоо битгий тараарай",
+      "forbidden": [],
+      "note": "Expected natural Mongolian: Одоо битгий тараарай."
+    },
+    {
+      "id": "give-me-your-hand-natural",
+      "source": "Give me your hand",
+      "expected": "Надад гараа өг",
+      "forbidden": [],
+      "note": "Expected natural Mongolian: Надад гараа өг."
+    },
+    {
+      "id": "lets-miss-you-on-asr-error",
+      "source": "Let’s miss you on",
+      "expected_flag": "likely ASR error",
+      "must_flag_as_suspicious_asr": true,
+      "forbidden": [],
+      "note": "Must be flagged as likely ASR error."
+    },
+    {
+      "id": "give-it-head-asr-error",
+      "source": "Give it head",
+      "expected_flag": "likely ASR error",
+      "must_flag_as_suspicious_asr": true,
+      "forbidden": [],
+      "note": "Must be flagged as likely ASR error."
+    },
+    {
+      "id": "customers-without-service-natural",
+      "source": "We have 750,000 customers without service",
+      "expected_style": "natural spoken Mongolian",
+      "forbidden": ["үйлчилгээгүй үйлчлүүлэгч"],
+      "note": "Should avoid stiff phrase үйлчилгээгүй үйлчлүүлэгч."
+    }
+  ]
+}
