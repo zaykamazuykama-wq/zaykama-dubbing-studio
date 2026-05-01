@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import re
@@ -48,6 +49,7 @@ class ZaykamaV95TTSHook:
         self.tts_provider = os.getenv("TTS_PROVIDER", "validation")
         self.tts_warnings: list[str] = []
         self.tts_summary = {"total": 0, "provider_tts": 0, "validation_waveform": 0, "empty": 0, "failed": 0}
+        self.tts_cache_summary = {"hits": 0, "misses": 0, "hit_rate": 0.0}
         self.audio_master_path: str | None = None
         self.audio_master_mode = "none"
         self.real_audio_master_used = False
@@ -71,6 +73,43 @@ class ZaykamaV95TTSHook:
         allowed = {"internal_preview", "mp3", "wav", "srt", "vtt", "json", "csv", "final_video"}
         if self.export_mode not in allowed:
             raise ValueError(f"Unsupported EXPORT_MODE: {self.export_mode}. Allowed: {sorted(allowed)}")
+
+    def normalize_tts_cache_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        # Ensure deterministic ordering for JSON hashing
+        return {k: payload[k] for k in sorted(payload.keys())}
+
+    def compute_tts_cache_key(self, payload: dict[str, Any]) -> str:
+        normalized = self.normalize_tts_cache_payload(payload)
+        json_str = json.dumps(normalized, sort_keys=True, separators=(',', ':'))
+        return hashlib.sha256(json_str.encode('utf-8')).hexdigest()
+
+    def get_tts_cache_path(self, cache_key: str, ext: str = ".wav") -> str:
+        return f"data/tts_cache/{cache_key}{ext}"
+
+    def is_cacheable_tts_payload(self, payload: dict[str, Any]) -> bool:
+        if payload.get("provider") != "edge_tts":
+            return False
+        text = payload.get("text", "").strip()
+        if not text or text == "provider_failed" or "fallback" in text.lower():
+            return False
+        return True
+
+    def is_valid_cached_audio(self, path: str) -> bool:
+        if not os.path.exists(path):
+            return False
+        size = os.path.getsize(path)
+        return size > 512  # Minimum valid audio size
+
+    def store_tts_cache(self, src_path: str, cache_path: str) -> None:
+        Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src_path, cache_path)
+
+    def compute_tts_cache_summary(self, segments: list[dict[str, Any]]) -> dict[str, Any]:
+        hits = sum(1 for s in segments if s.get("ttsCacheHit") is True)
+        misses = sum(1 for s in segments if s.get("ttsCacheHit") is False and s.get("ttsMode") == "provider_tts")
+        total_cacheable = hits + misses
+        hit_rate = hits / total_cacheable if total_cacheable > 0 else 0.0
+        return {"hits": hits, "misses": misses, "hit_rate": hit_rate}
 
     def ensure_segment_defaults(self, segment: dict[str, Any]) -> dict[str, Any]:
         defaults = {"id": 0, "start": 0.0, "end": 1.0, "sourceText": "", "mongolianText": "", "speakerId": "spk_01"}
@@ -623,11 +662,49 @@ class ZaykamaV95TTSHook:
         segment["chosenVoiceReason"] = reason
         segment["alternativeVoiceCandidates"] = [voice["id"] for voice in alternatives]
         path = f"outputs/tts/segment_{segment.get('id', 0)}_{best['id']}.wav"
+        payload = {
+            "provider": best["provider"],
+            "voice_id": best["voiceName"],
+            "text": segment.get("mongolianText", "").strip(),
+            "emotion": segment.get("emotion") or segment.get("emotionLabel"),
+            "style": segment.get("style"),
+            "delivery": segment.get("delivery"),
+            "rate": segment.get("rate") or segment.get("speed"),
+            "format": "wav"
+        }
+        cacheable = self.is_cacheable_tts_payload(payload)
+        if cacheable:
+            cache_key = self.compute_tts_cache_key(payload)
+            cache_path = self.get_tts_cache_path(cache_key)
+            segment["ttsCacheKey"] = cache_key
+            segment["ttsCachedPath"] = cache_path
+            if self.is_valid_cached_audio(cache_path):
+                # Cache hit
+                Path(path).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(cache_path, path)
+                segment["ttsCacheHit"] = True
+                segment["ttsPath"] = path
+                segment["ttsMode"] = "provider_tts"
+                segment["ttsProvider"] = "edge_tts"
+                segment["ttsWarning"] = ""
+                self.tts_summary["provider_tts"] += 1
+                self.tts_summary["total"] += 1
+                self.real_speech_tts_used = True
+                return segment
+            else:
+                # Cache miss
+                segment["ttsCacheHit"] = False
+        else:
+            segment["ttsCacheHit"] = False
+        # Generate TTS normally
         result = self.synthesize_tts(segment.get("mongolianText", ""), best["voiceName"], path)
         segment["ttsPath"] = result["path"]
         segment["ttsMode"] = result["mode"]
         segment["ttsProvider"] = result["provider"]
         segment["ttsWarning"] = result.get("warning", "")
+        # If successful provider TTS, store in cache
+        if cacheable and result["ok"] and result["mode"] == "provider_tts" and self.is_valid_cached_audio(path):
+            self.store_tts_cache(path, cache_path)
         return segment
 
     def generate_all_tts(self, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -788,6 +865,9 @@ class ZaykamaV95TTSHook:
             "tts_provider": self.tts_provider,
             "tts_summary": self.tts_summary,
             "tts_warnings": self.tts_warnings,
+            "tts_cache_hits": self.compute_tts_cache_summary(segments)["hits"],
+            "tts_cache_misses": self.compute_tts_cache_summary(segments)["misses"],
+            "tts_cache_hit_rate": self.compute_tts_cache_summary(segments)["hit_rate"],
             "audio_master_path": self.audio_master_path,
             "audio_master_mode": self.audio_master_mode,
             "real_audio_master_used": self.real_audio_master_used,
@@ -1232,6 +1312,26 @@ class ZaykamaV95TTSHook:
         asr_quality_json = json.loads(Path("outputs/segments.json").read_text(encoding="utf-8"))
         assert asr_quality_json["quality"]["sourceSubtitleRecommended"] is True
         assert "Upload source subtitle" in asr_quality_json["quality"]["reviewReason"]
+        # TTS Cache tests
+        payload1 = {"provider": "edge_tts", "voice_id": "mn-MN-BataaNeural", "text": "Сайн байна уу", "format": "wav"}
+        payload2 = payload1.copy()
+        payload3 = payload1.copy()
+        payload3["text"] = "Баяртай"
+        assert self.compute_tts_cache_key(payload1) == self.compute_tts_cache_key(payload2)
+        assert self.compute_tts_cache_key(payload1) != self.compute_tts_cache_key(payload3)
+        assert self.is_cacheable_tts_payload(payload1) is True
+        assert self.is_cacheable_tts_payload({"provider": "validation", "text": "test"}) is False
+        assert self.is_cacheable_tts_payload({"provider": "edge_tts", "text": ""}) is False
+        assert self.is_cacheable_tts_payload({"provider": "edge_tts", "text": "provider_failed"}) is False
+        test_segments = [
+            {"ttsCacheHit": True, "ttsMode": "provider_tts"},
+            {"ttsCacheHit": False, "ttsMode": "provider_tts"},
+            {"ttsCacheHit": False, "ttsMode": "validation_waveform"}
+        ]
+        summary = self.compute_tts_cache_summary(test_segments)
+        assert summary["hits"] == 1
+        assert summary["misses"] == 1
+        assert summary["hit_rate"] == 0.5
         self.import_approved_corrections_into_memory([{"sourceText": "I don't know", "approvedMongolianText": "Би мэдэхгүй"}])
         before = len(self.dubbing_memory)
         assert self.import_approved_corrections_into_memory([{"sourceText": "I don't know", "approvedMongolianText": "Би мэднэ"}]) == 0
