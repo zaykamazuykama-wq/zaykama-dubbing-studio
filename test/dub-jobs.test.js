@@ -22,6 +22,7 @@ import { buildPipelineArgs, buildWorkerEnv } from '../lib/dub-worker.js';
 
 import {
   buildNoSubtitleFoundResponse,
+  buildSelectionRequiredResponse,
   chooseSubtitleCandidate,
   validateSubtitleText,
 } from '../lib/subtitle-discovery.js';
@@ -494,4 +495,37 @@ test('worker adds --source-subtitle when request metadata provides one', () => {
   const args = buildPipelineArgs('/tmp/job/input/source.mp4', { sourceSubtitlePath: 'input/source_subtitles.vtt' });
 
   assert.deepEqual(args, ['--headless', '--input', '/tmp/job/input/source.mp4', '--source-subtitle', 'input/source_subtitles.vtt']);
+});
+
+test('buildSelectionRequiredResponse returns candidates with proper error structure', () => {
+  const candidates = [
+    { source: 'embedded', streamIndex: 1, label: 'en / English', extractable: true },
+    { source: 'embedded', streamIndex: 2, label: 'ja / 日本語', extractable: true },
+  ];
+  const result = buildSelectionRequiredResponse(candidates);
+
+  assert.equal(result.error, 'source_subtitle_selection_required');
+  assert.equal(result.message, 'We found multiple subtitle tracks. Please choose one to continue.');
+  assert.deepEqual(result.candidates, candidates);
+});
+
+test('app/page.js contains subtitle selection UI strings', async () => {
+  const source = await readFile(path.join(process.cwd(), 'app', 'page.js'), 'utf8');
+
+  assert.equal(source.includes('source_subtitle_selection_required'), true);
+  assert.equal(source.includes('Choose Source Subtitle'), true);
+  assert.equal(source.includes('sourceSubtitleStreamIndex'), true);
+  assert.equal(source.includes('We found multiple embedded subtitle tracks'), true);
+  assert.equal(source.includes('Use selected subtitle and start dubbing'), true);
+  assert.equal(source.includes('Manual .srt/.vtt upload still takes priority'), true);
+  assert.equal(source.includes('source_subtitle_required'), true);
+  assert.equal(source.includes('Switch to Quick Demo'), true);
+});
+
+test('app/page.js contains subtitle selection state management', async () => {
+  const source = await readFile(path.join(process.cwd(), 'app', 'page.js'), 'utf8');
+
+  assert.equal(source.includes('setSubtitleSelection'), true);
+  assert.equal(source.includes('subtitleSelection'), true);
+  assert.equal(source.includes('selectedStreamIndex'), true);
 });

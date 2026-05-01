@@ -120,22 +120,60 @@ export async function POST(request) {
     if (mode === 'movie_review' && !sourceSubtitlePath) {
       const embeddedCandidates = discoverEmbeddedSubtitleCandidates(inputPath);
       sourceSubtitleCandidates = [...sourceSubtitleCandidates, ...embeddedCandidates];
-      const selection = chooseSubtitleCandidate(embeddedCandidates);
-      if (mode === 'movie_review' && selection.status === 'selection_required') {
-        return NextResponse.json({ ok: false, error: buildSelectionRequiredResponse(selection.candidates) }, { status: 409 });
-      }
-      if (selection.status === 'selected') {
-        const selected = selection.candidate;
-        const autoExt = selected.codecName === 'webvtt' ? '.vtt' : '.srt';
-        const autoSubtitlePath = safeJobPath(ROOT_DIR, jobId, 'input', `source_subtitle_auto${autoExt}`);
-        const extracted = await extractEmbeddedSubtitle(inputPath, selected.streamIndex, autoSubtitlePath);
-        if (extracted.ok) {
-          sourceSubtitlePath = autoSubtitlePath;
+      
+      const sourceSubtitleStreamIndexRaw = form.get('sourceSubtitleStreamIndex');
+      if (sourceSubtitleStreamIndexRaw) {
+        const selectedStreamIndex = Number(sourceSubtitleStreamIndexRaw);
+        if (Number.isFinite(selectedStreamIndex)) {
+          const matched = embeddedCandidates.find(
+            (candidate) => candidate.source === 'embedded' 
+              && candidate.extractable === true 
+              && candidate.streamIndex === selectedStreamIndex
+          );
+          if (!matched) {
+            return NextResponse.json({
+              ok: false,
+              error: {
+                error: 'invalid_source_subtitle_selection',
+                message: 'Selected subtitle track is not available or not extractable.',
+              },
+            }, { status: 400 });
+          }
+          const userSelectedExt = matched.codecName === 'webvtt' ? '.vtt' : '.srt';
+          const userSelectedPath = safeJobPath(ROOT_DIR, jobId, 'input', `source_subtitle_user_selected${userSelectedExt}`);
+          const extracted = await extractEmbeddedSubtitle(inputPath, selectedStreamIndex, userSelectedPath);
+          if (!extracted.ok) {
+            return NextResponse.json({
+              ok: false,
+              error: {
+                error: 'invalid_source_subtitle_selection',
+                message: 'Selected subtitle track is not available or not extractable.',
+              },
+            }, { status: 400 });
+          }
+          sourceSubtitlePath = userSelectedPath;
           sourceSubtitleValidation = extracted.validation;
           sourceSubtitleProvenance = 'embedded';
-          sourceSubtitleSelectionReason = 'single_embedded_candidate';
-        } else {
-          sourceSubtitleCandidates.push({ ...selected, validation: extracted.validation || { ok: false, reason: extracted.reason } });
+          sourceSubtitleSelectionReason = 'user_selected_embedded_candidate';
+        }
+      } else {
+        const selection = chooseSubtitleCandidate(embeddedCandidates);
+        if (mode === 'movie_review' && selection.status === 'selection_required') {
+          return NextResponse.json({ ok: false, error: buildSelectionRequiredResponse(selection.candidates) }, { status: 409 });
+        }
+        if (selection.status === 'selected') {
+          const selected = selection.candidate;
+          const autoExt = selected.codecName === 'webvtt' ? '.vtt' : '.srt';
+          const autoSubtitlePath = safeJobPath(ROOT_DIR, jobId, 'input', `source_subtitle_auto${autoExt}`);
+          const extracted = await extractEmbeddedSubtitle(inputPath, selected.streamIndex, autoSubtitlePath);
+          if (extracted.ok) {
+            sourceSubtitlePath = autoSubtitlePath;
+            sourceSubtitleValidation = extracted.validation;
+            sourceSubtitleProvenance = 'embedded';
+            sourceSubtitleSelectionReason = 'single_embedded_candidate';
+          } else {
+            sourceSubtitleCandidates.push({ ...selected, validation: extracted.validation || { ok: false, reason: extracted.reason } });
+          }
         }
       }
     }
@@ -151,6 +189,9 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
+    const sourceSubtitleStreamIndexRaw = form.get('sourceSubtitleStreamIndex');
+    const sourceSubtitleSelectedStreamIndex = sourceSubtitleStreamIndexRaw ? Number(sourceSubtitleStreamIndexRaw) : null;
+    
     const requestMeta = {
       originalName: file.name || null,
       mimeType: file.type || null,
@@ -164,6 +205,7 @@ export async function POST(request) {
       sourceSubtitleValidation,
       sourceSubtitleCandidates,
       sourceSubtitleSelectionReason,
+      ...(sourceSubtitleSelectionReason === 'user_selected_embedded_candidate' && Number.isFinite(sourceSubtitleSelectedStreamIndex) ? { sourceSubtitleSelectedStreamIndex } : {}),
       translationProvider: 'gemini',
       ttsProvider: 'edge_tts',
       voice: form.get('voice') || null,

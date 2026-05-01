@@ -14,6 +14,11 @@ export default function Home() {
   const [segmentData, setSegmentData] = useState(null);
   const [segmentDrafts, setSegmentDrafts] = useState({});
   const [savingSegmentId, setSavingSegmentId] = useState(null);
+  const [subtitleSelection, setSubtitleSelection] = useState(null);
+
+  useEffect(() => {
+    setSubtitleSelection(null);
+  }, [file, sourceSubtitle, mode]);
 
   useEffect(() => {
     if (!jobId || job?.status === "completed" || job?.status === "needs_review" || job?.status === "failed") return;
@@ -115,15 +120,27 @@ export default function Home() {
       const form = new FormData();
       form.append("file", file);
       if (sourceSubtitle) form.append("sourceSubtitle", sourceSubtitle);
+      if (subtitleSelection?.selectedStreamIndex && !sourceSubtitle) {
+        form.append("sourceSubtitleStreamIndex", String(subtitleSelection.selectedStreamIndex));
+      }
       form.append("targetLanguage", targetLanguage || "mn");
       form.append("mode", mode);
 
       const response = await fetch("/api/dub", { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok || data.ok === false) {
+        if (data.error?.error === "source_subtitle_selection_required") {
+          setSubtitleSelection({
+            candidates: data.error.candidates || [],
+            selectedStreamIndex: String(data.error.candidates?.[0]?.streamIndex ?? ""),
+          });
+          setError(data.error);
+          return;
+        }
         setError(data.error || { message: "Upload failed" });
         return;
       }
+      setSubtitleSelection(null);
       setJob(data);
       setJobId(data.jobId);
     } catch (err) {
@@ -208,6 +225,41 @@ export default function Home() {
           {submitting ? "Starting..." : "Start dubbing"}
         </button>
       </form>
+
+      {subtitleSelection && subtitleSelection.candidates.length > 0 && (
+        <section style={{ marginTop: 24, padding: 16, border: "2px solid #0066cc", borderRadius: 8, background: "#f0f8ff" }}>
+          <h3>Choose Source Subtitle</h3>
+          <p>We found multiple embedded subtitle tracks. Choose one to continue Movie Review.</p>
+          <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
+            {subtitleSelection.candidates.map((candidate) => (
+              <label key={candidate.streamIndex} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="radio"
+                  name="subtitleStreamIndex"
+                  value={String(candidate.streamIndex)}
+                  checked={String(subtitleSelection.selectedStreamIndex) === String(candidate.streamIndex)}
+                  onChange={(event) => setSubtitleSelection({
+                    ...subtitleSelection,
+                    selectedStreamIndex: event.target.value,
+                  })}
+                />
+                <span>{candidate.label || `Stream ${candidate.streamIndex}`}</span>
+              </label>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            style={{ marginTop: 16, padding: "10px 14px", background: "#0066cc", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}
+          >
+            {submitting ? "Processing..." : "Use selected subtitle and start dubbing"}
+          </button>
+          <p style={{ marginTop: 12, fontSize: 13, color: "#666" }}>
+            Manual .srt/.vtt upload still takes priority.
+          </p>
+        </section>
+      )}
 
       {job && (
         <section style={{ marginTop: 24, padding: 16, border: "1px solid #ddd", borderRadius: 8 }}>
@@ -331,6 +383,27 @@ export default function Home() {
           <h2>Error</h2>
           {error?.code && <p><strong>Code:</strong> {error.code}</p>}
           <p>{error?.message || "Job failed"}</p>
+          {error?.error === "source_subtitle_required" && !subtitleSelection && (
+            <div style={{ marginTop: 12, padding: 12, border: "1px solid #b00020", background: "#ffebee", borderRadius: 4 }}>
+              <p><strong>Options to proceed:</strong></p>
+              <ul style={{ paddingLeft: 20 }}>
+                <li style={{ marginBottom: 8 }}>Upload a .srt or .vtt subtitle file above, or</li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("quick_demo");
+                      setError(null);
+                      setSubtitleSelection(null);
+                    }}
+                    style={{ padding: "8px 12px", background: "#0066cc", color: "white", border: "none", borderRadius: 4, cursor: "pointer" }}
+                  >
+                    Switch to Quick Demo (ASR-only)
+                  </button>
+                </li>
+              </ul>
+            </div>
+          )}
         </section>
       )}
     </main>
