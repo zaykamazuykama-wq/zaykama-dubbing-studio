@@ -20,6 +20,12 @@ import { validateMovieReviewSourceSubtitleRequirement } from '../app/api/dub/rou
 
 import { buildPipelineArgs, buildWorkerEnv } from '../lib/dub-worker.js';
 
+import {
+  buildNoSubtitleFoundResponse,
+  chooseSubtitleCandidate,
+  validateSubtitleText,
+} from '../lib/subtitle-discovery.js';
+
 const REAL_FLAGS = {
   real_transcription_used: true,
   real_translation_used: true,
@@ -239,6 +245,62 @@ test('normalizeManifest exposes only safe artifact metadata', async () => {
   }
 });
 
+test('validateSubtitleText accepts valid .srt cue', () => {
+  const result = validateSubtitleText('1\n00:00:01,000 --> 00:00:02,000\nHello\n', '.srt');
+
+  assert.equal(result.ok, true);
+  assert.equal(result.cueCount, 1);
+});
+
+test('validateSubtitleText accepts valid .vtt cue', () => {
+  const result = validateSubtitleText('WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHello\n', '.vtt');
+
+  assert.equal(result.ok, true);
+  assert.equal(result.cueCount, 1);
+});
+
+test('validateSubtitleText rejects empty subtitle', () => {
+  const result = validateSubtitleText('', '.srt');
+
+  assert.equal(result.ok, false);
+  assert.equal(result.cueCount, 0);
+  assert.equal(result.reason, 'empty_subtitle');
+});
+
+test('validateSubtitleText rejects subtitle with no timestamp cues', () => {
+  const result = validateSubtitleText('hello without timestamps', '.srt');
+
+  assert.equal(result.ok, false);
+  assert.equal(result.cueCount, 0);
+  assert.equal(result.reason, 'no_parseable_cues');
+});
+
+test('buildNoSubtitleFoundResponse returns upload and quick_demo actions', () => {
+  const result = buildNoSubtitleFoundResponse();
+
+  assert.equal(result.error, 'source_subtitle_required');
+  assert.deepEqual(result.actions, ['upload_subtitle', 'switch_to_quick_demo']);
+});
+
+test('chooseSubtitleCandidate returns selection_required for multiple embedded extractable candidates', () => {
+  const result = chooseSubtitleCandidate([
+    { source: 'embedded', streamIndex: 1, extractable: true },
+    { source: 'embedded', streamIndex: 2, extractable: true },
+  ]);
+
+  assert.equal(result.status, 'selection_required');
+});
+
+test('chooseSubtitleCandidate picks uploaded valid subtitle over embedded candidate', () => {
+  const result = chooseSubtitleCandidate([
+    { source: 'uploaded', path: 'input/source_subtitles.srt', validation: { ok: true } },
+    { source: 'embedded', streamIndex: 1, extractable: true },
+  ]);
+
+  assert.equal(result.status, 'selected');
+  assert.equal(result.candidate.source, 'uploaded');
+});
+
 test('movie_review source subtitle requirement is enforced before upload starts', () => {
   const result = validateMovieReviewSourceSubtitleRequirement('movie_review', false);
 
@@ -276,10 +338,35 @@ test('POST /api/dub rejects movie_review without source subtitle before job star
   assert.deepEqual(body, {
     ok: false,
     error: {
-      code: 'SOURCE_SUBTITLE_REQUIRED_FOR_MOVIE_REVIEW',
-      message: 'Movie review mode requires source subtitle (.srt/.vtt). Use quick_demo for ASR-only testing.',
+      error: 'source_subtitle_required',
+      message: 'No subtitle could be found or extracted. Movie Review mode requires a source subtitle file.',
+      actions: ['upload_subtitle', 'switch_to_quick_demo'],
     },
   });
+});
+
+test('POST /api/dub rejects movie_review uploaded subtitle with no parseable cues before worker start', async () => {
+  const { POST } = await import('../app/api/dub/route.js?test=invalid-subtitle');
+  const form = new FormData();
+  form.set('file', new Blob(['video'], { type: 'video/mp4' }), 'source.mp4');
+  form.set('mode', 'movie_review');
+  form.set('sourceSubtitle', new Blob(['this has no cues'], { type: 'application/x-subrip' }), 'source.srt');
+
+  const response = await POST({ formData: async () => form });
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.ok, false);
+  assert.equal(body.error.error, 'invalid_source_subtitle');
+  assert.equal(body.error.message, 'Only valid .srt and .vtt subtitle files with parseable cues are supported.');
+  assert.equal(body.error.reason, 'no_parseable_cues');
+});
+
+test('app page allows movie_review upload without client-side source subtitle block for embedded discovery', async () => {
+  const source = await readFile(path.join(process.cwd(), 'app', 'page.js'), 'utf8');
+
+  assert.equal(source.includes('SOURCE_SUBTITLE_REQUIRED_FOR_MOVIE_REVIEW'), false);
+  assert.equal(source.includes('Movie review mode requires source subtitle (.srt/.vtt). Use quick_demo for ASR-only testing.'), false);
 });
 
 test('POST /api/dub rejects before job start when GEMINI_API_KEY is missing', async () => {

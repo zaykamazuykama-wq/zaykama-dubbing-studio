@@ -105,13 +105,6 @@ export default function Home() {
       setError({ message: "Choose a video file first" });
       return;
     }
-    if (mode === "movie_review" && !sourceSubtitle) {
-      setError({
-        code: "SOURCE_SUBTITLE_REQUIRED_FOR_MOVIE_REVIEW",
-        message: "Movie review mode requires source subtitle (.srt/.vtt). Use quick_demo for ASR-only testing.",
-      });
-      return;
-    }
 
     setSubmitting(true);
     setError(null);
