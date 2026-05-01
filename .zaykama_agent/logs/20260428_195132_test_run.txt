@@ -1,0 +1,13 @@
+COMMAND: python zaykama_V9_5_tts_hook.py --input sample_real_30s.mp4 --headness
+RETURN CODE: 2
+DURATION: 0.21s
+
+STDOUT:
+
+
+STDERR:
+usage: zaykama_V9_5_tts_hook.py [-h] [--self-test] [--provider-smoke]
+                                [--headless] [--export-mode EXPORT_MODE]
+                                [--input INPUT]
+zaykama_V9_5_tts_hook.py: error: unrecognized arguments: --headness
+

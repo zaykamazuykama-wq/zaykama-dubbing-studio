@@ -1,0 +1,17 @@
+COMMAND: python zaykama_v9_5_tts_hook.py --provider-smoke --headless
+RETURN CODE: 0
+DURATION: 4.28s
+
+STDOUT:
+[ZAYKAMA] === Real Provider Smoke Test Started ===
+[ZAYKAMA] Testing real Edge-TTS provider with verified Mongolian voices
+[ZAYKAMA] Provider smoke status: PROVIDER_SMOKE_PASS
+[ZAYKAMA] Report written to outputs/provider_smoke/provider_smoke_report.json and .md
+
+================================================================================
+PROVIDER SMOKE RESULT: PROVIDER_SMOKE_PASS
+================================================================================
+
+
+STDERR:
+

@@ -1,0 +1,68 @@
+3: Zaykama V9.5.6 Recovery Bundle - Mongolian AI Video Dubbing System
+4: Stable V9.5 base with translation fallback, validation TTS, strict final-video guard,
+36:         self.real_translation_used = False
+42:         self.translation_provider = os.getenv("TRANSLATION_PROVIDER", "fallback")
+43:         self.translation_mode = "fallback_marker"
+44:         self.translation_warnings: list[str] = []
+45:         self.translation_summary = {"total": 0, "memory_hit": 0, "provider_translation": 0, "fallback_marker": 0, "empty": 0}
+57:             {"id": "mn_male_adult_bataa", "name": "Bataa Mongolian Male", "gender": "male", "ageRange": "adult", "tones": ["warm", "calm"], "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural"},
+58:             {"id": "mn_female_adult_yesui", "name": "Yesui Mongolian Female", "gender": "female", "ageRange": "adult", "tones": ["warm", "clear"], "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural"},
+72:         defaults = {"id": 0, "start": 0.0, "end": 1.0, "sourceText": "", "mongolianText": "", "speakerId": "spk_01"}
+87:         mongolian_phrase = r"\b(үгүй|биш|битгий|болохгүй|чадахгүй|хийхгүй|байхгүй)\b"
+88:         mongolian_suffix = r"\S+гүй\b"
+89:         return bool(re.search(english_neg, lowered) or re.search(mongolian_phrase, lowered) or re.search(mongolian_suffix, lowered))
+91:     def load_mongolian_dubbing_memory(self) -> None:
+98:                 self.log_message(f"Loaded Mongolian dubbing memory with {len(self.dubbing_memory)} entries.")
+102:     def save_mongolian_dubbing_memory(self) -> None:
+109:             approved = correction.get("approvedMongolianText", "")
+117:         self.save_mongolian_dubbing_memory()
+120:     def reset_translation_state(self) -> None:
+121:         self.real_translation_used = False
+122:         self.translation_mode = "fallback_marker"
+123:         self.translation_warnings = []
+124:         self.translation_summary = {"total": 0, "memory_hit": 0, "provider_translation": 0, "fallback_marker": 0, "empty": 0}
+138:     def translate_text(self, text: str, context: dict[str, Any] | None = None) -> dict[str, str | bool]:
+140:             self.translation_summary["empty"] += 1
+141:             self.translation_summary["total"] += 1
+142:             self.translation_mode = "empty"
+146:             self.translation_summary["memory_hit"] += 1
+147:             self.translation_summary["total"] += 1
+148:             self.translation_mode = "memory_hit"
+150:         self.translation_summary["fallback_marker"] += 1
+151:         self.translation_summary["total"] += 1
+152:         self.translation_mode = "fallback_marker"
+153:         return {"ok": True, "text": f"[Монгол орчуулга шаардлагатай] {text}", "mode": "fallback_marker", "provider": self.translation_provider, "warning": "No provider available"}
+155:     def translate_segments(self, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+156:         self.reset_translation_state()
+158:             result = self.translate_text(segment.get("sourceText", ""), {"source_lang": self.detected_language})
+159:             segment["mongolianText"] = result["text"]
+160:             segment["translationMode"] = result["mode"]
+161:             segment["translationProvider"] = result["provider"]
+162:             segment["translationWarning"] = result.get("warning", "")
+165:     def apply_mongolian_dubbing_memory(self, text: str) -> str:
+234:         return {"ok": True, "path": output_path, "mode": "validation_waveform", "provider": self.tts_provider, "warning": "Validation waveform fallback"}
+244:         result = self.synthesize_tts(segment.get("mongolianText", ""), best["voiceName"], path)
+311:                 file.write(f"{index}\n{self._format_srt_time(float(segment.get('start', 0)))} --> {self._format_srt_time(float(segment.get('end', 0)))}\n{segment.get('mongolianText', '')}\n\n")
+322:                 file.write(f"{start} --> {end}\n{segment.get('mongolianText', '')}\n\n")
+333:             "real_translation_used": self.real_translation_used,
+337:             "translation_provider": self.translation_provider,
+338:             "translation_mode": self.translation_mode,
+339:             "translation_summary": self.translation_summary,
+340:             "translation_warnings": self.translation_warnings,
+356:             writer = csv.DictWriter(file, fieldnames=["id", "start", "end", "sourceText", "mongolianText", "speakerId"])
+370:             "real_translation_used": self.real_translation_used,
+418:             and self.real_translation_used
+496:         self.load_mongolian_dubbing_memory()
+508:         self.translate_segments(segments)
+519:         self.log_message("Final video merge skipped (validation fallback mode).")
+524:         if self.real_translation_used:
+532:         self.log_message("Testing real Edge-TTS provider with verified Mongolian voices")
+575:             "blockers": [] if successful else ["No real Edge-TTS Mongolian voice succeeded"],
+600:         self.import_approved_corrections_into_memory([{"sourceText": "I don't know", "approvedMongolianText": "Би мэдэхгүй"}])
+602:         assert self.import_approved_corrections_into_memory([{"sourceText": "I don't know", "approvedMongolianText": "Би мэднэ"}]) == 0
+604:         self.translation_provider = "fallback"
+606:         translated = self.translate_segments([{"id": 1, "sourceText": "I don't know"}, {"id": 2, "sourceText": "Hello world"}, {"id": 3, "sourceText": ""}])
+607:         assert translated[0]["translationMode"] == "memory_hit"
+608:         assert self.translation_summary == {"total": 3, "memory_hit": 1, "provider_translation": 0, "fallback_marker": 1, "empty": 1}
+610:         segments = [{"id": 1, "start": 0, "end": 1, "mongolianText": "Сайн байна уу"}, {"id": 2, "start": 1, "end": 2, "mongolianText": ""}]
+631:         sample_segments = [{"id": 1, "start": 0.0, "end": 1.5, "sourceText": "Hello", "mongolianText": "Сайн байна уу", "speakerId": "spk_01"}]

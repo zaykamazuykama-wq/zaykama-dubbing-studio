@@ -1,0 +1,28 @@
+COMMAND: python -m py_compile zaykama_v9_5_tts_hook.py && python zaykama_v9_5_tts_hook.py --self-test --headless && python zaykama_v9_5_tts_hook.py --provider-smoke --headless
+RETURN CODE: 2
+DURATION: 4.69s
+
+STDOUT:
+[ZAYKAMA] === Zaykama V9.5.3 Final TTS Audio Master Lock Self-Test Started ===
+[ZAYKAMA] Imported 1 approved corrections into memory.
+[ZAYKAMA] Imported 0 approved corrections into memory.
+[ZAYKAMA] === ALL SELF-TESTS (V9.2.3-full + V9.3 + V9.4 + V9.5.3 TTS + V9.5.5 Audio Master Assembly) PASSED SUCCESSFULLY! ===
+
+================================================================================
+SELF-TEST RESULT: PASSED
+================================================================================
+[ZAYKAMA] === Real Provider Smoke Test Started ===
+[ZAYKAMA] Testing real Edge-TTS provider with verified Mongolian voices
+[ZAYKAMA] Edge-TTS provider not available or voice failed - falling back to validation waveform
+[ZAYKAMA] Edge-TTS provider not available or voice failed - falling back to validation waveform
+[ZAYKAMA] No real provider_tts voices succeeded
+[ZAYKAMA] Provider smoke status: PROVIDER_SMOKE_FAIL
+[ZAYKAMA] Report written to outputs/provider_smoke/provider_smoke_report.json and .md
+
+================================================================================
+PROVIDER SMOKE RESULT: PROVIDER_SMOKE_FAIL
+================================================================================
+
+
+STDERR:
+

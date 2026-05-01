@@ -1,0 +1,26 @@
+[
+  {
+    "sourceText": "Give me your hand",
+    "expected": "Надад гараа өг."
+  },
+  {
+    "badAsrSource": "Let's miss you on",
+    "expectedReviewFlag": "possibleAsrError",
+    "expectedReasonIncludes": "Give me your hand"
+  },
+  {
+    "sourceText": "This is a jar of dirt.",
+    "expected": "Энэ шороотой лонх.",
+    "forbidden": ["шороон сав"]
+  },
+  {
+    "sourceText": "Is the jar of dirt going to help?",
+    "expected": "Энэ шороотой лонх тус болно гэж үү?",
+    "forbidden": ["шороон сав"]
+  },
+  {
+    "badAsrSource": "Give it head.",
+    "expectedReviewFlag": "possibleAsrError",
+    "forbidden": ["толгой"]
+  }
+]

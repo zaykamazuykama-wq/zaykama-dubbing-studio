@@ -1,0 +1,101 @@
+390:             try:
+391:                 subprocess.check_call(["ffmpeg", "-y", "-i", str(wav_path), str(mp3_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+392:                 return {"ok": mp3_path.exists(), "path": str(mp3_path) if mp3_path.exists() else None, "skipped": not mp3_path.exists(), "reason": "Validation MP3 export only; not a dubbed audio master"}
+393:             except Exception as exc:
+394:                 return {"ok": False, "path": None, "skipped": True, "reason": f"MP3 conversion failed: {exc}"}
+395:         return {"ok": False, "path": None, "skipped": True, "reason": "ffmpeg not available"}
+396: 
+397:     def export_srt(self, segments: list[dict[str, Any]]) -> dict[str, Any]:
+398:         return {"ok": True, "path": self.create_srt(segments), "skipped": False, "reason": ""}
+399: 
+400:     def export_vtt(self, segments: list[dict[str, Any]]) -> dict[str, Any]:
+401:         return {"ok": True, "path": self.create_vtt(segments), "skipped": False, "reason": ""}
+402: 
+403:     def export_json(self, segments: list[dict[str, Any]]) -> dict[str, Any]:
+404:         return {"ok": True, "path": self.create_json_export(segments), "skipped": False, "reason": ""}
+405: 
+406:     def export_csv(self, segments: list[dict[str, Any]]) -> dict[str, Any]:
+407:         return {"ok": True, "path": self.create_csv_export(segments), "skipped": False, "reason": ""}
+408: 
+409:     def create_final_video(self) -> dict[str, Any]:
+410:         output_path = Path("outputs/final_dubbed.mp4")
+411:         output_path.parent.mkdir(parents=True, exist_ok=True)
+412:         if output_path.exists():
+413:             output_path.unlink()
+414:         if not self.input_path or not Path(self.input_path).exists():
+415:             return {"ok": False, "path": None, "skipped": True, "reason": "No input video provided"}
+416:         if not (
+417:             self.real_transcription_used
+418:             and self.real_translation_used
+419:             and self.real_speech_tts_used
+420:             and self.real_audio_master_used
+421:             and self.audio_master_mode == "provider_tts_assembled"
+422:             and self.audio_master_path
+423:             and Path(self.audio_master_path).exists()
+424:             and self.tts_summary.get("provider_tts", 0) > 0
+425:         ):
+426:             return {"ok": False, "path": None, "skipped": True, "reason": "Final video merge disabled: no real assembled dubbed audio master"}
+427:         if not shutil.which("ffmpeg"):
+428:             return {"ok": False, "path": None, "skipped": True, "reason": "ffmpeg not available"}
+429:         try:
+430:             subprocess.check_call(["ffmpeg", "-y", "-i", self.input_path, "-i", self.audio_master_path, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-shortest", str(output_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+431:             return {"ok": output_path.exists(), "path": str(output_path) if output_path.exists() else None, "skipped": not output_path.exists(), "reason": "Real ffmpeg merge completed"}
+432:         except Exception as exc:
+433:             return {"ok": False, "path": None, "skipped": True, "reason": f"ffmpeg merge failed: {exc}"}
+434: 
+435:     def preflight_check(self) -> dict[str, Any]:
+436:         Path("outputs").mkdir(parents=True, exist_ok=True)
+437:         errors: list[str] = []
+438:         warnings: list[str] = []
+439:         if self.input_path and not Path(self.input_path).exists():
+440:             errors.append("Input file does not exist")
+441:         if not shutil.which("ffmpeg"):
+442:             warnings.append("ffmpeg not available")
+443:         return {"ok": not errors, "errors": errors, "warnings": warnings}
+444: 
+445:     def compliance_check(self) -> dict[str, bool]:
+446:         self.log_message("Compliance check passed.")
+447:         return {"voice_cloning": False, "similar_voice_generation": True}
+448: 
+449:     def extract_audio(self) -> str | None:
+450:         if not self.input_path or not Path(self.input_path).exists() or not shutil.which("ffmpeg"):
+451:             self.log_message("No valid input for audio extraction.")
+452:             return None
+453:         path = "outputs/extracted_audio.wav"
+454:         try:
+455:             subprocess.check_call(["ffmpeg", "-y", "-i", self.input_path, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+456:             self.log_message(f"Audio extracted successfully: {path}")
+457:             return path
+458:         except Exception as exc:
+459:             self.log_message(f"Audio extraction failed: {exc}")
+460:             return None
+461: 
+462:     def transcribe_audio(self, audio_path: str | None) -> list[dict[str, Any]]:
+463:         if not audio_path or not Path(audio_path).exists():
+464:             self.real_transcription_used = False
+465:             self.asr_skipped = True
+466:             self.pipeline_mode = "input_detected_asr_skipped"
+467:             return []
+468:         try:
+469:             from faster_whisper import WhisperModel  # type: ignore
+470:             model = WhisperModel("tiny", device="cpu", compute_type="int8")
+471:             segments_gen, info = model.transcribe(audio_path, beam_size=1, vad_filter=True, condition_on_previous_text=False)
+472:             self.detected_language = getattr(info, "language", "unknown")
+473:             segments_list = list(segments_gen)
+474:             if not segments_list:
+475:                 self.real_transcription_used = False
+476:                 self.asr_skipped = True
+477:                 self.pipeline_mode = "real_input_asr_empty"
+478:                 return []
+479:             self.real_transcription_used = True
+480:             self.asr_skipped = False
+481:             self.pipeline_mode = "real_input_asr_transcribed"
+482:             return [{"id": index, "start": round(item.start, 3), "end": round(item.end, 3), "sourceText": item.text.strip(), "speakerId": "spk_01", "speakerProfile": {"gender": "unknown", "ageRange": "adult"}} for index, item in enumerate(segments_list)]
+483:         except Exception:
+484:             self.log_message("faster-whisper not available - honest ASR skipped.")
+485:             self.real_transcription_used = False
+486:             self.asr_skipped = True
+487:             self.pipeline_mode = "input_detected_asr_skipped"
+488:             return []
+489: 
+490:     def auto_dub_process(self) -> None:

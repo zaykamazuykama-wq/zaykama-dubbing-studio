@@ -1,0 +1,17 @@
+COMMAND: python -m py_compile zaykama_v9_5_tts_hook.py && python zaykama_v9_5_tts_hook.py --self-test --headless
+RETURN CODE: 0
+DURATION: 1.12s
+
+STDOUT:
+[ZAYKAMA] === Zaykama V9.5.3 Final TTS Audio Master Lock Self-Test Started ===
+[ZAYKAMA] Imported 1 approved corrections into memory.
+[ZAYKAMA] Imported 0 approved corrections into memory.
+[ZAYKAMA] === ALL SELF-TESTS (V9.2.3-full + V9.3 + V9.4 + V9.5.3 TTS + V9.5.5 Audio Master Assembly) PASSED SUCCESSFULLY! ===
+
+================================================================================
+SELF-TEST RESULT: PASSED
+================================================================================
+
+
+STDERR:
+

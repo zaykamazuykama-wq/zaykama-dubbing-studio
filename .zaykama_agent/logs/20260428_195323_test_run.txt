@@ -1,0 +1,16 @@
+COMMAND: python zaykama_v9_5_tts_hook.py --input sample_real_30s.mp4 --headless
+RETURN CODE: 0
+DURATION: 8.22s
+
+STDOUT:
+[ZAYKAMA] === Auto Dub Process Started ===
+[ZAYKAMA] Compliance check passed.
+[ZAYKAMA] Loaded Mongolian dubbing memory with 1 entries.
+[ZAYKAMA] Real input detected: sample_real_30s.mp4
+[ZAYKAMA] Audio extracted successfully: outputs/extracted_audio.wav
+[ZAYKAMA] Final video merge skipped (validation fallback mode).
+[ZAYKAMA] === Auto Dub Process Completed ===
+
+
+STDERR:
+

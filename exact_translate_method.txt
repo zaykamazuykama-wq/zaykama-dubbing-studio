@@ -1,0 +1,100 @@
+145:         if key in self.dubbing_memory:
+146:             self.translation_summary["memory_hit"] += 1
+147:             self.translation_summary["total"] += 1
+148:             self.translation_mode = "memory_hit"
+149:             return {"ok": True, "text": self.dubbing_memory[key], "mode": "memory_hit", "provider": "memory", "warning": ""}
+150:         self.translation_summary["fallback_marker"] += 1
+151:         self.translation_summary["total"] += 1
+152:         self.translation_mode = "fallback_marker"
+153:         return {"ok": True, "text": f"[Монгол орчуулга шаардлагатай] {text}", "mode": "fallback_marker", "provider": self.translation_provider, "warning": "No provider available"}
+154: 
+155:     def translate_segments(self, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+156:         self.reset_translation_state()
+157:         for segment in segments:
+158:             result = self.translate_text(segment.get("sourceText", ""), {"source_lang": self.detected_language})
+159:             segment["mongolianText"] = result["text"]
+160:             segment["translationMode"] = result["mode"]
+161:             segment["translationProvider"] = result["provider"]
+162:             segment["translationWarning"] = result.get("warning", "")
+163:         return segments
+164: 
+165:     def apply_mongolian_dubbing_memory(self, text: str) -> str:
+166:         return self.dubbing_memory.get(self.normalize_memory_key(text), f"[Монгол орчуулга шаардлагатай] {text}")
+167: 
+168:     def match_voice_to_speaker(self, profile: dict[str, Any]) -> tuple[dict[str, Any], int, list[dict[str, Any]], str]:
+169:         scored: list[tuple[int, dict[str, Any]]] = []
+170:         profile_tones = set(profile.get("tone", []) if isinstance(profile.get("tone"), list) else [profile.get("tone", "")])
+171:         for voice in self.voice_library:
+172:             score = 0
+173:             if voice.get("gender") == profile.get("gender"):
+174:                 score += 40
+175:             if voice.get("ageRange") == profile.get("ageRange"):
+176:                 score += 30
+177:             score += len(set(voice.get("tones", [])) & profile_tones) * 10
+178:             scored.append((score, voice))
+179:         scored.sort(key=lambda item: item[0], reverse=True)
+180:         best = scored[0][1]
+181:         alternatives = [item[1] for item in scored[1:3]]
+182:         return best, scored[0][0], alternatives, f"Matched profile with score={scored[0][0]}"
+183: 
+184:     def _create_real_wav(self, path: str, duration: float = 1.0, frequency: int = 440) -> str:
+185:         Path(path).parent.mkdir(parents=True, exist_ok=True)
+186:         sample_rate = 22050
+187:         total = int(sample_rate * duration)
+188:         with wave.open(path, "wb") as wav_file:
+189:             wav_file.setnchannels(1)
+190:             wav_file.setsampwidth(2)
+191:             wav_file.setframerate(sample_rate)
+192:             for i in range(total):
+193:                 value = int(16000 * (1 if (i // max(1, sample_rate // frequency)) % 2 else -1))
+194:                 wav_file.writeframes(struct.pack("<h", value))
+195:         return path
+196: 
+197:     def synthesize_tts(self, text: str, voice_id: str, output_path: str) -> dict[str, Any]:
+198:         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+199:         if not text or not text.strip():
+200:             self.tts_summary["empty"] += 1
+201:             self.tts_summary["total"] += 1
+202:             self.tts_mode = "empty"
+203:             return {"ok": False, "path": None, "mode": "empty", "provider": "none", "warning": "Empty text"}
+204:         if self.tts_provider == "edge_tts":
+205:             try:
+206:                 import edge_tts  # type: ignore
+207:                 raw_mp3 = str(Path(output_path).with_suffix(".edge.mp3"))
+208:                 communicate = edge_tts.Communicate(text, voice=voice_id)
+209:                 import asyncio
+210:                 asyncio.run(communicate.save(raw_mp3))
+211:                 if Path(raw_mp3).exists() and Path(raw_mp3).stat().st_size > 512:
+212:                     try:
+213:                         subprocess.check_call(["ffmpeg", "-y", "-i", raw_mp3, "-ar", "22050", "-ac", "1", output_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+214:                         Path(raw_mp3).unlink(missing_ok=True)
+215:                         if Path(output_path).exists() and Path(output_path).stat().st_size > 512:
+216:                             self.real_speech_tts_used = True
+217:                             self.tts_mode = "provider_tts"
+218:                             self.tts_summary["provider_tts"] += 1
+219:                             self.tts_summary["total"] += 1
+220:                             return {"ok": True, "path": output_path, "mode": "provider_tts", "provider": "edge_tts", "warning": ""}
+221:                         self.tts_warnings.append("Edge-TTS WAV output missing or too small after conversion")
+222:                     except Exception as conv_exc:
+223:                         self.tts_warnings.append(f"Edge-TTS MP3 to WAV conversion failed: {conv_exc}")
+224:                 else:
+225:                     self.tts_warnings.append("Edge-TTS produced empty MP3")
+226:             except Exception as exc:
+227:                 self.tts_warnings.append(f"Edge-TTS failed: {exc}")
+228:             self.tts_summary["failed"] += 1
+229:             self.log_message("Edge-TTS provider not available or voice failed - falling back to validation waveform")
+230:         self.tts_summary["validation_waveform"] += 1
+231:         self.tts_summary["total"] += 1
+232:         self.tts_mode = "validation_waveform"
+233:         self._create_real_wav(output_path)
+234:         return {"ok": True, "path": output_path, "mode": "validation_waveform", "provider": self.tts_provider, "warning": "Validation waveform fallback"}
+235: 
+236:     def generate_segment_tts(self, segment: dict[str, Any]) -> dict[str, Any]:
+237:         best, _score, alternatives, reason = self.match_voice_to_speaker(segment.get("speakerProfile", {"gender": "male", "ageRange": "adult"}))
+238:         segment["chosenVoiceId"] = best["id"]
+239:         segment["chosenVoiceName"] = best["name"]
+240:         segment["chosenVoiceProvider"] = best["provider"]
+241:         segment["chosenVoiceReason"] = reason
+242:         segment["alternativeVoiceCandidates"] = [voice["id"] for voice in alternatives]
+243:         path = f"outputs/tts/segment_{segment.get('id', 0)}_{best['id']}.wav"
+244:         result = self.synthesize_tts(segment.get("mongolianText", ""), best["voiceName"], path)
