@@ -60,10 +60,38 @@ class ZaykamaV95TTSHook:
         self.validate_export_mode()
 
     def _build_voice_library(self) -> list[dict[str, Any]]:
+        # Safe similar-voice presets only: these IDs describe casting intent for
+        # manual assignment and future provider-swappable expansion. They do not
+        # clone, imitate, or identify real people. Edge-TTS currently exposes a
+        # small Mongolian voice set, so multiple presets intentionally map to
+        # the same allowed provider voiceName for now.
         return [
-            {"id": "mn_male_adult_bataa", "name": "Bataa Mongolian Male", "gender": "male", "ageRange": "adult", "tones": ["warm", "calm"], "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural"},
-            {"id": "mn_female_adult_yesui", "name": "Yesui Mongolian Female", "gender": "female", "ageRange": "adult", "tones": ["warm", "clear"], "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural"},
-            {"id": "mn_neutral_validation", "name": "Neutral Validation Voice", "gender": "unknown", "ageRange": "adult", "tones": ["neutral"], "provider": "validation", "voiceName": "mn-MN-BataaNeural"},
+            {"id": "M_NARRATOR_CALM", "name": "Male Narrator Calm", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "adult", "role": "narrator", "archetype": "calm narrator", "timbre": "medium clear", "energy": "low", "tones": ["narrator", "calm", "clear"], "styleTags": ["narrator", "calm", "clear"], "supportedEmotions": ["neutral", "calm", "reflective"]},
+            {"id": "M_NARRATOR_DEEP", "name": "Male Narrator Deep", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "adult", "role": "narrator", "archetype": "deep narrator", "timbre": "deep resonant", "energy": "medium", "tones": ["narrator", "dramatic", "deep"], "styleTags": ["narrator", "dramatic", "deep"], "supportedEmotions": ["neutral", "serious", "dramatic"]},
+            {"id": "M_YOUNG_HERO", "name": "Male Young Hero", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "young", "role": "hero", "archetype": "young hero", "timbre": "bright firm", "energy": "high", "tones": ["young", "energetic", "heroic"], "styleTags": ["young", "energetic", "heroic"], "supportedEmotions": ["neutral", "happy", "urgent", "determined"]},
+            {"id": "M_YOUNG_LIGHT", "name": "Male Young Light", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "young", "role": "young", "archetype": "light young male", "timbre": "light clear", "energy": "medium", "tones": ["young", "light", "warm"], "styleTags": ["young", "light", "warm"], "supportedEmotions": ["neutral", "happy", "soft", "curious"]},
+            {"id": "M_ADULT_LEADER", "name": "Male Adult Leader", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "adult", "role": "leader", "archetype": "adult leader", "timbre": "firm authoritative", "energy": "medium", "tones": ["adult", "leader", "commanding"], "styleTags": ["adult", "leader", "commanding"], "supportedEmotions": ["neutral", "commanding", "serious", "confident"]},
+            {"id": "M_ADULT_WARM", "name": "Male Adult Warm", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "adult", "role": "adult", "archetype": "warm adult male", "timbre": "warm rounded", "energy": "medium", "tones": ["adult", "warm", "calm"], "styleTags": ["adult", "warm", "calm"], "supportedEmotions": ["neutral", "warm", "happy", "reassuring"]},
+            {"id": "M_ADULT_SERIOUS", "name": "Male Adult Serious", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "adult", "role": "adult", "archetype": "serious adult male", "timbre": "dry focused", "energy": "medium", "tones": ["adult", "serious", "calm"], "styleTags": ["adult", "serious", "calm"], "supportedEmotions": ["neutral", "serious", "concerned", "stern"]},
+            {"id": "M_VILLAIN_DEEP", "name": "Male Villain Deep", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "adult", "role": "villain", "archetype": "deep villain", "timbre": "dark deep", "energy": "medium", "tones": ["villain", "deep", "dramatic"], "styleTags": ["villain", "deep", "dramatic"], "supportedEmotions": ["neutral", "anger", "threatening", "sarcastic"]},
+            {"id": "M_COMEDIC_LIGHT", "name": "Male Comic Light", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "adult", "role": "comic", "archetype": "light comic male", "timbre": "light playful", "energy": "high", "tones": ["comic", "light", "energetic"], "styleTags": ["comic", "light", "energetic"], "supportedEmotions": ["neutral", "happy", "surprised", "playful"]},
+            {"id": "M_ELDER_WISE", "name": "Male Elder Wise", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "elder", "role": "elder", "archetype": "wise elder male", "timbre": "aged steady", "energy": "low", "tones": ["elder", "wise", "calm"], "styleTags": ["elder", "wise", "calm"], "supportedEmotions": ["neutral", "wise", "calm", "solemn"]},
+            {"id": "M_ELDER_SOFT", "name": "Male Elder Soft", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "elder", "role": "elder", "archetype": "soft elder male", "timbre": "soft aged", "energy": "low", "tones": ["elder", "soft", "warm"], "styleTags": ["elder", "soft", "warm"], "supportedEmotions": ["neutral", "gentle", "sad", "reassuring"]},
+            {"id": "M_ACTION_URGENT", "name": "Male Action Urgent", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "adult", "role": "action", "archetype": "urgent action male", "timbre": "sharp intense", "energy": "high", "tones": ["action", "urgent", "energetic"], "styleTags": ["action", "urgent", "energetic"], "supportedEmotions": ["neutral", "urgent", "fear", "anger", "determined"]},
+            {"id": "M_DOCUMENTARY_CLEAR", "name": "Male Documentary Clear", "provider": "edge_tts", "voiceName": "mn-MN-BataaNeural", "gender": "male", "ageRange": "adult", "role": "documentary", "archetype": "clear documentary male", "timbre": "clear balanced", "energy": "medium", "tones": ["documentary", "clear", "calm"], "styleTags": ["documentary", "clear", "calm"], "supportedEmotions": ["neutral", "calm", "informative"]},
+            {"id": "F_NARRATOR_WARM", "name": "Female Narrator Warm", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "adult", "role": "narrator", "archetype": "warm narrator", "timbre": "warm clear", "energy": "low", "tones": ["narrator", "warm", "calm"], "styleTags": ["narrator", "warm", "calm"], "supportedEmotions": ["neutral", "warm", "calm", "reflective"]},
+            {"id": "F_NARRATOR_CLEAR", "name": "Female Narrator Clear", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "adult", "role": "narrator", "archetype": "clear narrator", "timbre": "clear bright", "energy": "medium", "tones": ["narrator", "clear", "documentary"], "styleTags": ["narrator", "clear", "documentary"], "supportedEmotions": ["neutral", "calm", "informative"]},
+            {"id": "F_YOUNG_SOFT", "name": "Female Young Soft", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "young", "role": "young", "archetype": "soft young female", "timbre": "soft light", "energy": "low", "tones": ["young", "soft", "warm"], "styleTags": ["young", "soft", "warm"], "supportedEmotions": ["neutral", "gentle", "sad", "shy"]},
+            {"id": "F_YOUNG_BRIGHT", "name": "Female Young Bright", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "young", "role": "young", "archetype": "bright young female", "timbre": "bright lively", "energy": "high", "tones": ["young", "bright", "energetic"], "styleTags": ["young", "bright", "energetic"], "supportedEmotions": ["neutral", "happy", "excited", "surprised"]},
+            {"id": "F_ADULT_STRONG", "name": "Female Adult Strong", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "adult", "role": "leader", "archetype": "strong adult female", "timbre": "strong focused", "energy": "medium", "tones": ["adult", "leader", "strong"], "styleTags": ["adult", "leader", "strong"], "supportedEmotions": ["neutral", "commanding", "confident", "serious"]},
+            {"id": "F_ADULT_WARM", "name": "Female Adult Warm", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "adult", "role": "adult", "archetype": "warm adult female", "timbre": "warm rounded", "energy": "medium", "tones": ["adult", "warm", "calm"], "styleTags": ["adult", "warm", "calm"], "supportedEmotions": ["neutral", "warm", "happy", "reassuring"]},
+            {"id": "F_ADULT_SERIOUS", "name": "Female Adult Serious", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "adult", "role": "adult", "archetype": "serious adult female", "timbre": "steady serious", "energy": "medium", "tones": ["adult", "serious", "calm"], "styleTags": ["adult", "serious", "calm"], "supportedEmotions": ["neutral", "serious", "concerned", "stern"]},
+            {"id": "F_DRAMATIC_DEEP", "name": "Female Dramatic Deep", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "adult", "role": "dramatic", "archetype": "deep dramatic female", "timbre": "deep dramatic", "energy": "medium", "tones": ["dramatic", "deep", "villain"], "styleTags": ["dramatic", "deep", "villain"], "supportedEmotions": ["neutral", "dramatic", "anger", "fear"]},
+            {"id": "F_COMEDIC_BRIGHT", "name": "Female Comic Bright", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "adult", "role": "comic", "archetype": "bright comic female", "timbre": "bright playful", "energy": "high", "tones": ["comic", "bright", "energetic"], "styleTags": ["comic", "bright", "energetic"], "supportedEmotions": ["neutral", "happy", "surprised", "playful"]},
+            {"id": "F_ELDER_WISE", "name": "Female Elder Wise", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "elder", "role": "elder", "archetype": "wise elder female", "timbre": "aged steady", "energy": "low", "tones": ["elder", "wise", "calm"], "styleTags": ["elder", "wise", "calm"], "supportedEmotions": ["neutral", "wise", "calm", "solemn"]},
+            {"id": "F_ELDER_SOFT", "name": "Female Elder Soft", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "elder", "role": "elder", "archetype": "soft elder female", "timbre": "soft aged", "energy": "low", "tones": ["elder", "soft", "warm"], "styleTags": ["elder", "soft", "warm"], "supportedEmotions": ["neutral", "gentle", "sad", "reassuring"]},
+            {"id": "F_ACTION_URGENT", "name": "Female Action Urgent", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "adult", "role": "action", "archetype": "urgent action female", "timbre": "sharp intense", "energy": "high", "tones": ["action", "urgent", "energetic"], "styleTags": ["action", "urgent", "energetic"], "supportedEmotions": ["neutral", "urgent", "fear", "anger", "determined"]},
+            {"id": "F_DOCUMENTARY_CLEAR", "name": "Female Documentary Clear", "provider": "edge_tts", "voiceName": "mn-MN-YesuiNeural", "gender": "female", "ageRange": "adult", "role": "documentary", "archetype": "clear documentary female", "timbre": "clear balanced", "energy": "medium", "tones": ["documentary", "clear", "calm"], "styleTags": ["documentary", "clear", "calm"], "supportedEmotions": ["neutral", "calm", "informative"]},
         ]
 
     def log_message(self, message: str) -> None:
@@ -1557,7 +1585,7 @@ class ZaykamaV95TTSHook:
                 os.unlink(temp_path)
             # Test valid annotations
             valid_annotations = [
-                {"start": 0.0, "end": 1.0, "characterId": "char1", "voiceId": "mn_male_adult_bataa", "emotion": "happy"},
+                {"start": 0.0, "end": 1.0, "characterId": "char1", "voiceId": "M_ADULT_WARM", "emotion": "happy"},
                 {"start": 1.5, "end": 2.5, "editedText": "Modified text"}
             ]
             with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -1597,31 +1625,47 @@ class ZaykamaV95TTSHook:
             best_zero = self.find_best_annotation_for_segment(segment_zero, [ann_zero_primary, ann_zero_alias])
             assert best_zero == ann_zero_primary  # both have diff 0, but ann_zero_primary comes first
             # Test apply annotations
-            ann_with_fields = {"start": 0.0, "end": 1.0, "characterId": "char1", "voiceId": "mn_male_adult_bataa", "emotion": "happy"}
+            ann_with_fields = {"start": 0.0, "end": 1.0, "characterId": "char1", "voiceId": "M_ADULT_WARM", "emotion": "happy"}
             segments = [{"id": 1, "start": 0.5, "end": 1.5, "mongolianText": "Original text"}]
             applied = self.apply_manual_annotations(segments, [ann_with_fields], "test.json")
             assert applied[0]["manualAnnotationApplied"] is True
             assert applied[0]["manualAnnotationSource"] == "test.json"
             assert applied[0]["characterId"] == "char1"
-            assert applied[0]["voiceId"] == "mn_male_adult_bataa"
+            assert applied[0]["voiceId"] == "M_ADULT_WARM"
             assert applied[0]["emotion"] == "happy"
             # Test get_segment_tts_text
             assert self.get_segment_tts_text({"mongolianText": "Default text"}) == "Default text"
             assert self.get_segment_tts_text({"mongolianText": "Default text", "editedText": "Edited text"}) == "Edited text"
             assert self.get_segment_tts_text({"mongolianText": ""}) == ""
-            # Test select_segment_voice
+            # Test voice library metadata and select_segment_voice
+            required_voice_fields = {"id", "name", "provider", "voiceName", "gender", "ageRange", "energy", "styleTags", "supportedEmotions"}
+            voice_ids = [voice["id"] for voice in self.voice_library]
+            assert len(self.voice_library) == 26
+            assert len(set(voice_ids)) == 26
+            assert sum(1 for voice in self.voice_library if voice["gender"] == "male") == 13
+            assert sum(1 for voice in self.voice_library if voice["gender"] == "female") == 13
+            for voice in self.voice_library:
+                assert required_voice_fields.issubset(voice)
+                assert voice.get("role") or voice.get("archetype")
+                assert voice["voiceName"] in {"mn-MN-BataaNeural", "mn-MN-YesuiNeural"}
+                assert isinstance(voice["styleTags"], list) and voice["styleTags"]
+                assert isinstance(voice["supportedEmotions"], list) and voice["supportedEmotions"]
             segment_auto = {"speakerProfile": {"gender": "male", "ageRange": "adult"}}
             voice_auto = self.select_segment_voice(segment_auto)
-            assert voice_auto["id"] == "mn_male_adult_bataa"
-            segment_manual = {"voiceId": "mn_female_adult_yesui"}
-            voice_manual = self.select_segment_voice(segment_manual)
-            assert voice_manual["id"] == "mn_female_adult_yesui"
+            assert voice_auto["id"] == "M_NARRATOR_CALM"
+            for manual_id in ["M_ADULT_WARM", "M_VILLAIN_DEEP", "F_YOUNG_BRIGHT", "F_ELDER_SOFT", "F_DOCUMENTARY_CLEAR"]:
+                voice_manual = self.select_segment_voice({"voiceId": manual_id})
+                assert voice_manual["id"] == manual_id
             segment_provider = {"providerVoiceId": "mn-MN-YesuiNeural"}
             voice_provider = self.select_segment_voice(segment_provider)
-            assert voice_provider["id"] == "mn_female_adult_yesui"
+            assert voice_provider["voiceName"] == "mn-MN-YesuiNeural"
+            assert voice_provider["voiceName"] in {"mn-MN-BataaNeural", "mn-MN-YesuiNeural"}
+            segment_invalid_provider = {"providerVoiceId": "en-US-AriaNeural"}
+            voice_invalid_provider = self.select_segment_voice(segment_invalid_provider)
+            assert voice_invalid_provider["voiceName"] in {"mn-MN-BataaNeural", "mn-MN-YesuiNeural"}
             segment_invalid = {"voiceId": "invalid_voice"}
             voice_fallback = self.select_segment_voice(segment_invalid)
-            assert voice_fallback["id"] == "mn_male_adult_bataa"  # fallback to auto
+            assert voice_fallback["id"] == "M_NARRATOR_CALM"  # fallback to auto
             # Test cache payload includes manual fields
             segment_with_manual = {
                 "id": 1, "mongolianText": "Test", "emotion": "excited", "style": "formal", "delivery": "slow",
