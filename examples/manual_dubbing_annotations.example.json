@@ -1,0 +1,41 @@
+[
+  {
+    "start": 0.0,
+    "end": 2.4,
+    "characterId": "captain_01",
+    "speakerName": "Captain",
+    "voiceId": "M_ADULT_LEADER",
+    "providerVoiceId": "mn-MN-BataaNeural",
+    "emotion": "determined",
+    "style": "commanding",
+    "delivery": "clear steady pace",
+    "editedText": "Баг аа, бэлтгэлээ шалгаад хөдөлцгөөе.",
+    "notes": "Opening instruction; keep it confident, not shouted."
+  },
+  {
+    "start": 2.4,
+    "end": 5.0,
+    "characterId": "narrator_01",
+    "speakerName": "Narrator",
+    "voiceId": "F_NARRATOR_WARM",
+    "providerVoiceId": "mn-MN-YesuiNeural",
+    "emotion": "warm",
+    "style": "documentary",
+    "delivery": "gentle measured pace",
+    "editedText": "Өглөөний гэрэл хотын дээгүүр аажмаар туслаа.",
+    "notes": "Narration line; preserve a calm documentary feel."
+  },
+  {
+    "start": 5.0,
+    "end": 7.2,
+    "characterId": "runner_01",
+    "speakerName": "Runner",
+    "voiceId": "M_YOUNG_HERO",
+    "providerVoiceId": "mn-MN-BataaNeural",
+    "emotion": "urgent",
+    "style": "energetic",
+    "delivery": "fast but understandable",
+    "editedText": "Би одоо очлоо, хаалгаа нээгээрэй!",
+    "notes": "Young action line; urgent but still clear for dubbing."
+  }
+]

@@ -28,3 +28,4 @@ temp/
 
 .venv/
 GEMINI_API_KEY.txt
+manual_dubbing_annotations.json
