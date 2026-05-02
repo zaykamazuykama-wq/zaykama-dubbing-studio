@@ -1637,6 +1637,44 @@ class ZaykamaV95TTSHook:
             assert self.get_segment_tts_text({"mongolianText": "Default text"}) == "Default text"
             assert self.get_segment_tts_text({"mongolianText": "Default text", "editedText": "Edited text"}) == "Edited text"
             assert self.get_segment_tts_text({"mongolianText": ""}) == ""
+            # Test realistic 3-segment manual annotation flow
+            manual_flow_segments = [
+                {"id": 101, "start": 0.0, "end": 1.0, "mongolianText": "Эхний эх текст", "speakerProfile": {"gender": "male", "ageRange": "adult"}},
+                {"id": 102, "start": 1.2, "end": 2.1, "mongolianText": "Хоёр дахь эх текст", "speakerProfile": {"gender": "female", "ageRange": "adult"}},
+                {"id": 103, "start": 2.5, "end": 3.4, "mongolianText": "Гурав дахь эх текст", "speakerProfile": {"gender": "male", "ageRange": "young"}},
+            ]
+            manual_flow_annotations = [
+                {
+                    "start": 0.0, "end": 1.0, "characterId": "leader-01", "speakerName": "Leader",
+                    "voiceId": "M_ADULT_LEADER", "editedText": "Зассан удирдагчийн мөр",
+                    "emotion": "confident", "style": "commanding", "delivery": "steady", "notes": "Use leader preset",
+                },
+                {
+                    "start": 1.2, "end": 2.1, "characterId": "narrator-01", "speakerName": "Narrator",
+                    "voiceId": "F_NARRATOR_WARM", "editedText": "Зассан өгүүлэгчийн мөр",
+                    "emotion": "warm", "style": "narration", "delivery": "calm", "notes": "Warm narrator",
+                },
+                {
+                    "start": 2.5, "end": 3.4, "characterId": "hero-01", "speakerName": "Young Hero",
+                    "voiceId": "M_YOUNG_HERO", "editedText": "Зассан залуу баатрын мөр",
+                    "emotion": "determined", "style": "heroic", "delivery": "energetic", "notes": "Young hero preset",
+                },
+            ]
+            manual_flow_applied = self.apply_manual_annotations(manual_flow_segments, manual_flow_annotations, "in-memory-self-test")
+            for segment, annotation in zip(manual_flow_applied, manual_flow_annotations):
+                assert segment["manualAnnotationApplied"] is True
+                assert segment["manualAnnotationSource"] == "in-memory-self-test"
+                assert segment["editedText"] == annotation["editedText"]
+                assert self.get_segment_tts_text(segment) == annotation["editedText"]
+                assert self.get_segment_tts_text(segment) != segment["mongolianText"]
+                assert self.select_segment_voice(segment)["id"] == annotation["voiceId"]
+                assert segment["emotion"] == annotation["emotion"]
+                assert segment["style"] == annotation["style"]
+                assert segment["delivery"] == annotation["delivery"]
+                assert segment["characterId"] == annotation["characterId"]
+                assert segment["speakerName"] == annotation["speakerName"]
+                assert segment["manualNotes"] == annotation["notes"]
+                assert segment["mongolianText"].endswith("эх текст")
             # Test voice library metadata and select_segment_voice
             required_voice_fields = {"id", "name", "provider", "voiceName", "gender", "ageRange", "energy", "styleTags", "supportedEmotions"}
             voice_ids = [voice["id"] for voice in self.voice_library]
@@ -1663,8 +1701,10 @@ class ZaykamaV95TTSHook:
             segment_invalid_provider = {"providerVoiceId": "en-US-AriaNeural"}
             voice_invalid_provider = self.select_segment_voice(segment_invalid_provider)
             assert voice_invalid_provider["voiceName"] in {"mn-MN-BataaNeural", "mn-MN-YesuiNeural"}
-            segment_invalid = {"voiceId": "invalid_voice"}
+            assert voice_invalid_provider["voiceName"] != "en-US-AriaNeural"
+            segment_invalid = {"voiceId": "NOT_ALLOWED_VOICE"}
             voice_fallback = self.select_segment_voice(segment_invalid)
+            assert voice_fallback["id"] in voice_ids
             assert voice_fallback["id"] == "M_NARRATOR_CALM"  # fallback to auto
             # Test cache payload includes manual fields
             segment_with_manual = {
@@ -1684,9 +1724,18 @@ class ZaykamaV95TTSHook:
                 "format": "wav"
             }
             key1 = self.compute_tts_cache_key(payload_manual)
-            payload_manual["emotion"] = "calm"
-            key2 = self.compute_tts_cache_key(payload_manual)
-            assert key1 != key2  # Different emotion should produce different cache key
+            payload_text_changed = payload_manual.copy()
+            payload_text_changed["text"] = "Different edited test"
+            payload_emotion_changed = payload_manual.copy()
+            payload_emotion_changed["emotion"] = "calm"
+            payload_style_changed = payload_manual.copy()
+            payload_style_changed["style"] = "whispered"
+            payload_delivery_changed = payload_manual.copy()
+            payload_delivery_changed["delivery"] = "fast"
+            assert key1 != self.compute_tts_cache_key(payload_text_changed)  # Different editedText should produce different cache key
+            assert key1 != self.compute_tts_cache_key(payload_emotion_changed)  # Different emotion should produce different cache key
+            assert key1 != self.compute_tts_cache_key(payload_style_changed)  # Different style should produce different cache key
+            assert key1 != self.compute_tts_cache_key(payload_delivery_changed)  # Different delivery should produce different cache key
             self.log_message("=== ALL SELF-TESTS (V9.2.3-full + V9.3 + V9.4 + V9.5.3 TTS + V9.5.5 Audio Master Assembly + V9.6 Manual Annotations) PASSED SUCCESSFULLY! ===")
             return True
         finally:
