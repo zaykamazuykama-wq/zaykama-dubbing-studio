@@ -1,0 +1,34 @@
+{
+  "name": "zaykama-dubbing-studio",
+  "role": "dubmn-memory-qa-source",
+  "status": "connected_to_canonical_app",
+  "canonical_app_repo": "zaykamazuykama-wq/mongol-dub-genie",
+  "source_memory_repo": "zaykamazuykama-wq/zaykama-dubbing-studio",
+  "integration_date": "2026-05-27",
+  "exports": {
+    "memory": "dubbing_memory.json",
+    "benchmarks": "test/fixtures/translation_benchmark_cases.json",
+    "validation_script": "scripts/validate-memory.js"
+  },
+  "canonical_app_targets": {
+    "memory_module": "src/lib/dubbing-memory.ts",
+    "memory_tests": "src/lib/dubbing-memory.test.ts",
+    "worker_adapter": "scripts/worker-translation-pipeline.mjs",
+    "worker_demo": "scripts/memory-pipeline-demo.mjs"
+  },
+  "required_checks": [
+    "npm run validate:memory",
+    "npm run validate:integration",
+    "npm run export:memory"
+  ],
+  "product_rules": {
+    "translation_pipeline": "3-stage Mongolian dubbing translation pipeline",
+    "voice_policy": "similar voice assignment only; no cloning or impersonation without explicit permission",
+    "copyright_gate": "canonical app must require user copyright/permission confirmation before processing"
+  },
+  "notes": [
+    "This repo is the upstream memory and QA workspace.",
+    "The canonical user-facing app remains mongol-dub-genie.",
+    "New memory fixes should be validated here before being mirrored to the app repo."
+  ]
+}
