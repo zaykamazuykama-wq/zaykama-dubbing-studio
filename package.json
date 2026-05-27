@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "validate:memory": "node scripts/validate-memory.js"
+    "validate:memory": "node scripts/validate-memory.js",
+    "validate:integration": "node scripts/validate-integration.js",
+    "export:memory": "node scripts/export-memory-package.js",
+    "validate:all": "npm run validate:memory && npm run validate:integration && npm run export:memory"
   },
   "dependencies": {
     "next": "^15.0.0",
